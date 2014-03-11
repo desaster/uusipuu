@@ -1,0 +1,10 @@
+[Server]
+admin = .*\!.*desaster\@.*
+server = 127.0.0.1
+port = 6667
+nick = uuspiuu
+realname = find my source code at http://www.rpg.fi/uusipuu/
+
+[Web]
+baseurl = http://u.rpg.fi
+port = 8887
