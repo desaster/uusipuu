@@ -122,7 +122,10 @@ class Uusipuu(irc.IRCClient):
         mem = self.memstart()
         s = config.save(self.config)
         if s:
-            f = file('config.xml', 'w')
+            cfg_file = os.path.join(
+                self.factory.cfg.get('General', 'data_path'),
+                'config.xml')
+            f = file(cfg_file, 'w')
             f.write(s)
             f.close()
         self.memend(mem)
@@ -152,8 +155,11 @@ class Uusipuu(irc.IRCClient):
         self.config = {}
         self.dbs = {}
 
-        if os.path.exists('./config.xml'):
-            f = file('config.xml')
+        cfg_file = os.path.join(
+            self.factory.cfg.get('General', 'data_path'),
+            'config.xml')
+        if os.path.exists(cfg_file):
+            f = file(cfg_file)
             self.config = config.load(f.read())
             f.close()
 
