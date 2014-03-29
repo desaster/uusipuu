@@ -4,6 +4,7 @@ from twisted.internet import reactor, protocol
 from twisted.enterprise import adbapi
 import time, re, traceback, os, classloader, config, gc
 import MySQLdb.cursors
+import sqlite3
 
 class UusipuuModule(object):
     
@@ -76,8 +77,13 @@ class UusipuuModule(object):
             #    cp_min = 1,
             #    cp_max = 1,
             #    cp_reconnect = True)
-            self.bot.dbs[name]['db'] = \
-                adbapi.ConnectionPool("sqlite3", dbfile)
+            def setRowFactory(connection):
+                connection.row_factory = sqlite3.Row
+            self.bot.dbs[name]['db'] = adbapi.ConnectionPool(
+                "sqlite3",
+                dbfile,
+                check_same_thread=False,
+                cp_openfun=setRowFactory)
             self.bot.memend(mem)
             self.bot.dbs[name]['refs'] = []
         self.bot.dbs[name]['refs'].append('%s_%s' % (self.channel, self.name))
