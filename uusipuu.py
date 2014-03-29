@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: ISO-8859-15 -*-
 
+# doing execfile() on this file will alter the current interpreter's
+# environment so you can import libraries in the virtualenv
+#activate_this_file = "env2/bin/activate_this.py"
+#execfile(activate_this_file, dict(__file__=activate_this_file))
+
 from core import Uusipuu, Web
 from twisted.internet import reactor
 from twisted.web import server
+from twisted.python import log
 import ConfigParser, locale
+import sys
 
 if __name__ == '__main__':
+    log.startLogging(sys.stdout)
+    log.addObserver(log.FileLogObserver(file("log/uusipuu.log", "a")).emit)
+
     cfg = ConfigParser.ConfigParser()
     cfg.read('./uusipuu.cfg')
 

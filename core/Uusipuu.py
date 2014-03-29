@@ -2,6 +2,7 @@ from core import meminfo
 from twisted.words.protocols import irc
 from twisted.internet import reactor, protocol
 from twisted.enterprise import adbapi
+from twisted.python import log
 import time, re, traceback, os, classloader, config, gc
 import MySQLdb.cursors
 import sqlite3
@@ -29,7 +30,7 @@ class UusipuuModule(object):
         pass
 
     def _shutdown(self):
-        self.log('Shutting down')
+        log.msg('Shutting down')
         for s in self.scheduled:
             if type(self.scheduled[s]) == type([]):
                 l = self.scheduled[s]
@@ -38,7 +39,7 @@ class UusipuuModule(object):
             for i in l:
                 if i.called:
                     continue
-                self.log('Unscheduling %s' % repr(i))
+                log.msg('Unscheduling %s' % repr(i))
                 i.cancel()
         self.shutdown()
 
@@ -66,7 +67,7 @@ class UusipuuModule(object):
     def db_open(self, name, dbfile):
         if not self.bot.dbs.has_key(name):
             self.bot.dbs[name] = {}
-            self.log('Opening new adbapi ConnectionPool %s' % name)
+            log.msg('Opening new adbapi ConnectionPool %s' % name)
             mem = self.bot.memstart()
             #self.bot.dbs[name]['db'] = adbapi.ConnectionPool("MySQLdb",
             #    host = self.bot.factory.cfg.get('MySQL', 'server'),
@@ -118,11 +119,7 @@ class Uusipuu(irc.IRCClient):
         print mem_msg
 
     def log(self, msg, realm = 'core'):
-        output = '[%s] (%s) %s' % (time.strftime('%T'), realm, msg)
-        print output
-        f = file('uusipuu.log', 'a')
-        f.write('%s\n' % output)
-        f.close()
+        log.msg('[%s] %s' % (realm, msg))
 
     def save(self):
         mem = self.memstart()
@@ -151,7 +148,7 @@ class Uusipuu(irc.IRCClient):
         if self.factory.cfg.has_option('Server', 'password'):
             self.password = self.factory.cfg.get('Server', 'password')
         irc.IRCClient.connectionMade(self)
-        self.log('connected at %s' % \
+        log.msg('connected at %s' % \
             time.asctime(time.localtime(time.time())))
         self.channels = {}
         self.ignorenicks = []
@@ -180,7 +177,7 @@ class Uusipuu(irc.IRCClient):
 
     def connectionLost(self, reason):
         irc.IRCClient.connectionLost(self, reason)
-        self.log('disconnected at %s' % \
+        log.msg('disconnected at %s' % \
             time.asctime(time.localtime(time.time())))
 
     # callbacks for events
@@ -228,11 +225,11 @@ class Uusipuu(irc.IRCClient):
 
     def action(self, user, channel, msg):
         nick = user.split('!', 1)[0]
-        self.log('* %s %s' % (nick, msg))
+        log.msg('* %s %s' % (nick, msg))
 
     def joined(self, c):
         channel = c.lower()
-        self.log('I have joined %s' % channel)
+        log.msg('I have joined %s' % channel)
         if channel not in self.channels:
             self.channels[channel] = {}
         self.channels[channel]['users'] = [self.nickname]
@@ -260,12 +257,12 @@ class Uusipuu(irc.IRCClient):
                 traceback.print_exc()
 
     def userJoined(self, nick, channel):
-        self.log('%s has joined %s' % (nick, channel))
+        log.msg('%s has joined %s' % (nick, channel))
         self.channels[channel.lower()]['users'].append(nick)
 
     def left(self, c):
         channel = c.lower()
-        self.log('I have left %s' % channel)
+        log.msg('I have left %s' % channel)
         self.channels[channel]['users'] = []
         if channel in self.channels:
             del self.config['onload']['channels'][channel]
@@ -281,36 +278,36 @@ class Uusipuu(irc.IRCClient):
 
 
     def userLeft(self, nick, channel):
-        self.log('%s has left %s' % (nick, channel))
+        log.msg('%s has left %s' % (nick, channel))
         self.channels[channel.lower()]['users'].remove(nick)
 
     def userQuit(self, nick, reason):
-        self.log('%s has quit irc (%s)' % (nick, reason))
+        log.msg('%s has quit irc (%s)' % (nick, reason))
         for channel in self.channels:
             if self.channels[channel.lower()]['users'].count(nick):
                 self.channels[channel.lower()]['users'].remove(nick)
 
     def nickChanged(self, new_nick):
-        self.log('I am now known as %s' % (new_nick))
+        log.msg('I am now known as %s' % (new_nick))
         self.nickname = new_nick
         for channel in self.channels:
             self.channels[channel.lower()]['users'].remove(self.nickname)
             self.channels[channel.lower()]['users'].append(new_nick)
 
     def userRenamed(self, old_nick, new_nick):
-        self.log('%s is now known as %s' % (old_nick, new_nick))
+        log.msg('%s is now known as %s' % (old_nick, new_nick))
         for channel in self.channels:
             if self.channels[channel.lower()]['users'].count(old_nick):
                 self.channels[channel.lower()]['users'].remove(old_nick)
                 self.channels[channel.lower()]['users'].append(new_nick)
 
     def kickedFrom(self, channel, kicker, message):
-        self.log('I have been kicked from %s by %s (%s)' % \
+        log.msg('I have been kicked from %s by %s (%s)' % \
             (channel, kicker, message))
         self.channels[channel.lower()]['users'] = []
 
     def userKicked(self, kicked, channel, kicker, message):
-        self.log('%s has been kicked from %s by %s (%s)' % \
+        log.msg('%s has been kicked from %s by %s (%s)' % \
             (kicked, channel, kicker, message))
         self.channels[channel.lower()]['users'].remove(kicked)
 
