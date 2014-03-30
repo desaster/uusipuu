@@ -31,16 +31,17 @@ class UusipuuModule(object):
 
     def _shutdown(self):
         log.msg('Shutting down')
-        for s in self.scheduled:
-            if type(self.scheduled[s]) == type([]):
-                l = self.scheduled[s]
-            else:
-                l = [self.scheduled[s]]
-            for i in l:
-                if i.called:
-                    continue
-                log.msg('Unscheduling %s' % repr(i))
-                i.cancel()
+        if self.scheduled is not None:
+            for s in self.scheduled:
+                if type(self.scheduled[s]) == type([]):
+                    l = self.scheduled[s]
+                else:
+                    l = [self.scheduled[s]]
+                for i in l:
+                    if i.called:
+                        continue
+                    log.msg('Unscheduling %s' % repr(i))
+                    i.cancel()
         self.shutdown()
 
     def _privmsg(self, user, target, msg):
