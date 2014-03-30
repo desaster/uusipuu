@@ -85,7 +85,7 @@ class EVEApi(object):
 class Module(UusipuuModule):
 
     def startup(self):
-        self.db_open('evedb', 'evedb.sqlite')
+        self.db_open('evedb', 'data/db/evedb.sqlite')
         if 'characters' not in self.config:
             self.config['characters'] = {}
         if 'aliases' not in self.config:

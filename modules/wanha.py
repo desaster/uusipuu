@@ -13,7 +13,7 @@ import MySQLdb
 class Module(UusipuuModule):
 
     def startup(self):
-        self.db_open('botdb', 'wanha.sqlite')
+        self.db_open('botdb', 'data/db/wanha.sqlite')
         self.initdb()
 
         self.wanhat = [
