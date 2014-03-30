@@ -852,9 +852,13 @@ class Module(UusipuuModule):
         corp = corp[0].childNodes[0].nodeValue
 
         alliance = dom.getElementsByTagName('alliance')
-        alliance = alliance[0].childNodes[0].nodeValue
+        if alliance:
+            alliance = alliance[0].childNodes[0].nodeValue
+            alliance = ' <%s>' % (alliance,)
+        else:
+            alliance = ''
 
-        msg = '%s is a member of %s <%s>' % \
+        msg = '%s is a member of %s%s' % \
             (name, corp, alliance)
         self.bot.msg(replyto, str(msg))
 
