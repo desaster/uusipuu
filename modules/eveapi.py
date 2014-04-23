@@ -948,13 +948,12 @@ class Module(UusipuuModule):
                     if charName not in chars:
                         chars.append(charName)
 
-                    print bid
                     if bid:
-                        count_buy += volRemaining
-                        amount_buy += (volRemaining * price)
-                    else:
                         count_sell += volRemaining
                         amount_sell += (volRemaining * price)
+                    else:
+                        count_buy += volRemaining
+                        amount_buy += (volRemaining * price)
 
         sell_nice = locale.format('%.*f', (2, float(amount_sell)), True)
         buy_nice = locale.format('%.*f', (2, float(amount_buy)), True)
