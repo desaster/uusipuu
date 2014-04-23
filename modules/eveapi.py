@@ -188,6 +188,9 @@ class Module(UusipuuModule):
         if hasattr(data, 'getErrorMessage'): # exceptions
             return False, data.getErrorMessage()
 
+        with file('/tmp/foo.xml', 'a') as f:
+            f.write(data)
+
         try:
             dom = minidom.parseString(data)
         except Exception as e:
@@ -938,7 +941,7 @@ class Module(UusipuuModule):
                     if row.getAttribute('orderState') != '0':
                         continue
                     volRemaining = int(row.getAttribute('volRemaining'))
-                    bid = int(row.getAttribute('volRemaining'))
+                    bid = int(row.getAttribute('bid'))
                     price = float(row.getAttribute('price'))
                     charID = int(row.getAttribute('charID'))
 
@@ -949,11 +952,11 @@ class Module(UusipuuModule):
                         chars.append(charName)
 
                     if bid:
-                        count_sell += volRemaining
-                        amount_sell += (volRemaining * price)
-                    else:
                         count_buy += volRemaining
                         amount_buy += (volRemaining * price)
+                    else:
+                        count_sell += volRemaining
+                        amount_sell += (volRemaining * price)
 
         sell_nice = locale.format('%.*f', (2, float(amount_sell)), True)
         buy_nice = locale.format('%.*f', (2, float(amount_buy)), True)
