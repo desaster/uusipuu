@@ -170,6 +170,14 @@ class Module(UusipuuModule):
         self.log('Request for \'%s\' found %s' % (key, repr(chars)))
         return chars
 
+    def findcharbyid(self, key):
+        if type(key) == type(1):
+            key = str(key)
+        for c in self.config['characters']:
+            if self.config['characters'][c]['charid'] == key:
+                return c
+        return None
+
     def findalias(self, name):
         return [x for x in self.config['aliases'] \
             if x.strip().lower() == name.strip().lower()]
@@ -258,6 +266,13 @@ class Module(UusipuuModule):
 
     def query_corp_standings(self, userid, apikey, charid):
         return self.api.query('/corp/Standings.xml.aspx', {
+            'keyID': userid,
+            'vCode': apikey,
+            'characterID': charid,
+            })
+
+    def query_orders(self, userid, apikey, charid):
+        return self.api.query('/char/MarketOrders.xml.aspx', {
             'keyID': userid,
             'vCode': apikey,
             'characterID': charid,
@@ -861,5 +876,96 @@ class Module(UusipuuModule):
         msg = '%s is a member of %s%s' % \
             (name, corp, alliance)
         self.bot.msg(replyto, str(msg))
+
+    def cmd_orders(self, user, replyto, params):
+        char = params.strip()
+        nick = user.split('!', 1)[0]
+        if not len(char):
+            char = nick
+
+        # In this command we will only allow one result from the partial
+        # character search, so let's not use findchars()
+        chars = []
+        for alias in [x for x in self.config['aliases'] \
+                if x.lower() == char.lower()]:
+            for c in self.config['aliases'][alias]:
+                chars.extend(self.findchar(c))
+        if not len(chars):
+            chars = self.findchar(char)
+        if not len(chars):
+            chars = [x for x in self.config['characters'] \
+                if x.lower().count(char.lower())]
+            if len(chars):
+                chars = [chars[0]]
+        if not len(chars):
+            for alias in [x for x in self.config['aliases'] \
+                    if x.lower().count(char.lower())]:
+                for c in self.config['aliases'][alias]:
+                    chars.extend(self.findchar(c))
+                char = str(alias)
+                break
+
+        if not len(chars):
+            self.bot.msg(replyto, 'No characters found matching "%s"' % char)
+            return
+
+        dl = []
+        for c in chars:
+            dl.append(self.query_orders(
+                self.config['characters'][c]['userid'],
+                self.config['characters'][c]['apikey'],
+                self.config['characters'][c]['charid']))
+        dl = defer.DeferredList(dl, consumeErrors = True)
+        dl.addCallback(self.parseXMLs)
+        dl.addCallback(self.show_orders, user, replyto, char)
+
+    def show_orders(self, results, user, replyto, char):
+        chars = []
+
+        amount_buy = 0
+        count_buy = 0
+        amount_sell = 0
+        count_sell = 0
+
+        for result in results:
+            if not result[0]:
+                self.error(result[1], user)
+                continue
+            rowsets = result[1].getElementsByTagName('rowset')
+            for rowset in rowsets:
+                rows = rowset.getElementsByTagName('row')
+                for row in rows:
+                    if row.getAttribute('orderState') != '0':
+                        continue
+                    volRemaining = int(row.getAttribute('volRemaining'))
+                    bid = int(row.getAttribute('volRemaining'))
+                    price = float(row.getAttribute('price'))
+                    charID = int(row.getAttribute('charID'))
+
+                    charName = self.findcharbyid(charID)
+                    if charName is None:
+                        charName = str(charID)
+                    if charName not in chars:
+                        chars.append(charName)
+
+                    print bid
+                    if bid:
+                        count_buy += volRemaining
+                        amount_buy += (volRemaining * price)
+                    else:
+                        count_sell += volRemaining
+                        amount_sell += (volRemaining * price)
+
+        sell_nice = locale.format('%.*f', (2, float(amount_sell)), True)
+        buy_nice = locale.format('%.*f', (2, float(amount_buy)), True)
+
+        msg = 'Buy %s (%d) Sell %s (%d)' % \
+            (buy_nice, count_buy, sell_nice, count_sell)
+        if not len(chars):
+            self.bot.msg(replyto, 'All %d MarketOrders queries failed (%s)' % \
+                (len(results), char))
+        else:
+            self.bot.msg(replyto, '%s (%s)' % \
+                (msg, ', '.join(chars)))
 
 # vim: set et sw=4:
