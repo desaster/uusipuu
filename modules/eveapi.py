@@ -59,6 +59,8 @@ class EVEApi(object):
 
     def setcache(self, data, page, params):
         h = '%s%s%s' % (page, params['keyID'], params['vCode'])
+        if 'characterID' in params:
+            h += params['characterID']
         h = md5.md5(h).hexdigest()
         print 'Storing in cache %s' % (h,)
         expires = self.parse_expires(data)
@@ -79,6 +81,8 @@ class EVEApi(object):
 
     def query_cache(self, page, params):
         h = '%s%s%s' % (page, params['keyID'], params['vCode'])
+        if 'characterID' in params:
+            h += params['characterID']
         h = md5.md5(h).hexdigest()
         return self.cache[h]['data']
 
