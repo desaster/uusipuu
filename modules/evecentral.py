@@ -39,13 +39,14 @@ class Module(UusipuuModule):
         if len(pieces) > 1:
             region = pieces[1].strip()
 
-        type_id = yield self.findtype(item)
-        if not len(type_id):
+        result = yield self.findtype(item)
+        if not len(result):
             self.bot.msg(replyto, 'Unknown item :(')
             self.log('Item not found [%s]' % (item,))
             return
-        type_id = type_id[0]['typeID']
+        type_id = result[0]['typeID']
         type_id = int(type_id)
+        item = str(result[0]['typeName'])
 
         url = 'http://api.eve-central.com/api/marketstat?typeid=%d' % \
             (type_id,)
