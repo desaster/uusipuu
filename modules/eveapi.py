@@ -115,7 +115,7 @@ class Module(UusipuuModule):
                 ' WHERE typeID = ?'
         else:
             sql = 'SELECT typeName, typeID, groupID FROM invTypes' + \
-                ' WHERE typeName = ?'
+                ' WHERE typeName = ? COLLATE NOCASE'
         return self.db.runQuery(sql, (key,))
 
     def getitemattrs(self, id):
@@ -973,5 +973,87 @@ class Module(UusipuuModule):
         else:
             self.bot.msg(replyto, '%s (%s)' % \
                 (msg, ', '.join(chars)))
+
+    @inlineCallbacks
+    def cmd_level(self, user, replyto, params):
+        nick = user.split('!', 1)[0]
+
+        pieces = [x.strip() for x in params.strip().split(',')]
+        if len(pieces) < 1:
+            self.bot.msg(replyto, 'Usage: !level <skill>, <character>')
+            return
+        skillname = pieces[0]
+
+        char = nick
+        if len(pieces) > 1:
+            char = pieces[1]
+
+        chars = self.findchars(char)
+        if not len(chars):
+            self.bot.msg(replyto, 'No characters found matching "%s"' % char)
+            return
+
+        if len(chars) > 3:
+            self.bot.msg(replyto, ('Too many characters found (%d),' + \
+                ' please be more specific') % len(chars))
+            return
+
+        try:
+            print 'findtype', skillname
+            # FIXME: should search for skills only
+            skill = yield self.findtype(skillname)
+        except Exception as e:
+            self.error('SQL query failed %s (%s)' % (skillname, e), user)
+            return
+        if not len(skill):
+            self.bot.msg(replyto, 'Skill not found!')
+            return
+
+        skilltypeid = skill[0]['typeID']
+        skilltypename = skill[0]['typeName']
+
+        if not skill:
+            self.bot.msg(replyto, 'Skill not found: %s' % (skillname))
+            return
+
+        for char in chars:
+            d = self.query_charsheet(
+                self.config['characters'][char]['userid'],
+                self.config['characters'][char]['apikey'],
+                self.config['characters'][char]['charid'])
+            d.addCallback(self.parseXML)
+            d.addCallback(self.show_level,
+                user, replyto, char, skilltypeid, skilltypename)
+            d.addErrback(self.error, user)
+
+    def show_level(self, data, user, replyto, char, skilltypeid, skilltypename):
+        if not data[0]:
+            self.error(data[1], user)
+            return
+        dom = data[1]
+
+        rowsets = dom.getElementsByTagName('rowset')
+        skills = None
+        for rowset in rowsets:
+            if rowset.getAttribute('name') == 'skills':
+                skills = rowset
+        if skills is None:
+            self.bot.msg(replyto, 'Couldn\'t parse skills data :(')
+            return
+
+        level = None
+        for skill in skills.getElementsByTagName('row'):
+            if int(skill.getAttribute('typeID')) != skilltypeid:
+                continue
+            level = int(skill.getAttribute('level'))
+
+        if level is None:
+            level = 'Not trained!'
+        else:
+            level = ['?', 'I', 'II', 'III', 'IV', 'V'][level]
+
+        msg = '%s %s (%s)' % \
+            (skilltypename, level, char)
+        self.bot.msg(replyto, str(msg))
 
 # vim: set et sw=4:
