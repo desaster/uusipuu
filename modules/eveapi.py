@@ -44,7 +44,7 @@ class EVEApi(object):
             return None
 
         cachedUntil = cachedUntil[0].childNodes[0].nodeValue
-        #print 'cachedUntil: %s' % (cachedUntil,)
+        #print 'cachedUntil = %s' % (str(cachedUntil),)
         cachedUntil = time.mktime(time.strptime(
             cachedUntil, '%Y-%m-%d %H:%M:%S'))
 
@@ -145,6 +145,33 @@ class Module(UusipuuModule):
         """
         return self.db.runQuery(sql, (id,))
 
+    def getimplant(self, ids):
+        """
+        returns attribute modifier(s) for the specified implant
+        """
+        sql = """
+        SELECT
+            A.valueInt,
+            AT.attributeName
+        FROM
+            invTypes T
+            INNER JOIN dgmTypeAttributes A ON
+                T.typeID = A.typeID
+            INNER JOIN dgmAttributeTypes AT
+                ON AT.attributeID = A.attributeID
+        WHERE
+            AT.attributeName IN (
+                'charismaBonus',
+                'intelligenceBonus',
+                'memoryBonus',
+                'perceptionBonus',
+                'willpowerBonus') AND
+            A.valueInt != 0 AND
+            T.typeID IN (%s);
+        """
+        sql = sql % (', '.join(ids),)
+        return self.db.runQuery(sql)
+
     @inlineCallbacks
     def cmd_foo(self, user, replyto, args):
         data = yield self.findtype("Deimos")
@@ -192,8 +219,8 @@ class Module(UusipuuModule):
         if hasattr(data, 'getErrorMessage'): # exceptions
             return False, data.getErrorMessage()
 
-        with file('/tmp/foo.xml', 'a') as f:
-            f.write(data)
+        #with file('/tmp/foo.xml', 'a') as f:
+        #    f.write(data)
 
         try:
             dom = minidom.parseString(data)
@@ -299,19 +326,15 @@ class Module(UusipuuModule):
                 continue
             attributes[child.tagName] = int(child.childNodes[0].nodeValue)
 
-        # Collect implant effects
-        enhancers = {}
-        tag = dom.getElementsByTagName('attributeEnhancers')
-        for child1 in tag[0].childNodes:
-            if child1.nodeType != child1.ELEMENT_NODE:
+        # Collect implants
+        implants = []
+        rowsets = dom.getElementsByTagName('rowset')
+        for rowset in rowsets:
+            if rowset.getAttribute('name') != 'implants':
                 continue
-            for child2 in child1.childNodes:
-                if child2.nodeType != child2.ELEMENT_NODE or \
-                        child2.tagName != 'augmentatorValue':
-                    continue
-                # chop the 'Bonus' part
-                attributes[child1.tagName[:-5]] += \
-                    int(child2.childNodes[0].nodeValue)
+            rows = rowset.getElementsByTagName('row')
+            for row in rows:
+                implants.append(row.getAttribute('typeID'))
 
         # Collect the skills
         skills = {}
@@ -326,28 +349,7 @@ class Module(UusipuuModule):
                     'level':        int(row.getAttribute('level')),
                 }
 
-        # Apply basic and advanced learning skills
-        #learning = 0
-        #for skill in skills:
-        #    if skill in (3377, 12376): # Analytical Mind, Logic
-        #        attributes['intelligence'] += int(skills[skill]['level'])
-        #    if skill in (3379, 12387): # Spatial Awareness, Clarity
-        #        attributes['perception'] += int(skills[skill]['level'])
-        #    if skill in (3378, 12385): # Install Recall, Eidetic Memory
-        #        attributes['memory'] += int(skills[skill]['level'])
-        #    if skill in (3376, 12383): # Empathy, Presence
-        #        attributes['charisma'] += int(skills[skill]['level'])
-        #    if skill in (3375, 12386): # Iron Will, Focus
-        #        attributes['willpower'] += int(skills[skill]['level'])
-        #    if skill == 3374:
-        #        learning += int(skills[skill]['level'])
-
-        # Apply the learning skill
-        #for attribute in attributes:
-        #    attributes[attribute] = \
-        #        attributes[attribute] * (1 + (0.02 * learning))
-
-        return (attributes, skills)
+        return (attributes, implants, skills)
 
     def cmd_delchar(self, user, replyto, args):
         nick = user.split('!', 1)[0]
@@ -683,7 +685,7 @@ class Module(UusipuuModule):
 
         # charsheet, attributes
 
-        attributes, skills = self.parsecharsheet(cdom)
+        attributes, implants, skills = self.parsecharsheet(cdom)
 
         attrs = {}
         try:
@@ -702,6 +704,23 @@ class Module(UusipuuModule):
         except Exception as e:
             self.error('SQL query failed #2 (%s)' % (e,), user)
             return
+
+        try:
+            rows = yield self.getimplant(implants)
+        except Exception as e:
+            self.error('SQL query failed #3 (%s)' % (e,), user)
+            return
+        for row in rows:
+            attributeName = row['attributeName']
+            if not attributeName.endswith('Bonus'):
+                self.error('Unexpected attribute name: %s' % \
+                    (attributeName,), user)
+                return
+            print attributes
+            attributeName = attributeName[:-5]
+            print 'applying %d for %s' % (row['valueInt'], attributeName)
+            attributes[attributeName] += row['valueInt']
+
         sph = (attributes[primary] + (attributes[secondary] / 2)) * 60
 
         # ...
