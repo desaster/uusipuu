@@ -772,20 +772,34 @@ class Module(UusipuuModule):
 
         idom, cdom = data[0][1], data[1][1]
 
+        freesp = cdom.getElementsByTagName('freeSkillPoints')
+        freesp = int(freesp[0].childNodes[0].nodeValue)
+        if freesp > 0:
+            freesp = ' (%s unallocated)' % \
+                (locale.format('%.*f', (0, int(freesp)), True),)
+        else:
+            freesp = ''
+
+        respecs = cdom.getElementsByTagName('freeRespecs')
+        respecs = int(respecs[0].childNodes[0].nodeValue)
+        if respecs > 0:
+            respecs = ' (%s remaps available)' % \
+                (locale.format('%.*f', (0, int(respecs)), True),)
+        else:
+            respecs = ''
+
         clone = cdom.getElementsByTagName('cloneSkillPoints')
         clone = int(clone[0].childNodes[0].nodeValue)
 
         sp = idom.getElementsByTagName('skillPoints')
         sp = int(sp[0].childNodes[0].nodeValue)
 
-        upg = ""
-        if int(clone) < int(sp):
-            upg = ", upgrade needed!"
-
         self.bot.msg(replyto, 
-            '%s has %s sp (%s clone%s)' % \
-            (str(char), locale.format('%.*f', (0, int(sp)), True),
-            locale.format('%.*f', (0, int(clone)), True), str(upg)))
+            '%s has %s sp%s%s' % \
+            (str(char),
+            locale.format('%.*f', (0, int(sp)), True),
+            freesp,
+            respecs))
 
     def cmd_secstatus(self, user, replyto, params):
         char = params.strip()
