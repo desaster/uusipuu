@@ -734,6 +734,64 @@ class Module(UusipuuModule):
             sph)
         self.bot.msg(replyto, str(msg))
 
+    def cmd_birth(self, user, replyto, params):
+        char = params.strip()
+        nick = user.split('!', 1)[0]
+
+        if not len(char):
+            char = nick
+
+        chars = self.findchars(char)
+        if not len(chars):
+            self.bot.msg(replyto, 'No characters found matching "%s"' % char)
+            return
+
+        if len(chars) > 3:
+            self.bot.msg(replyto, ('Too many characters found (%d),' + \
+                ' please be more specific') % len(chars))
+            return
+
+        for char in chars:
+            d = self.query_charsheet(
+                self.config['characters'][char]['userid'],
+                self.config['characters'][char]['apikey'],
+                self.config['characters'][char]['charid'])
+            d.addCallback(self.parseXML)
+            d.addCallback(self.show_birth, user, replyto, char)
+            d.addErrback(self.error, user)
+
+    def show_birth(self, data, user, replyto, char):
+        if not data[0]:
+            self.error(data[1], user)
+            return
+
+        dom = data[1]
+
+        result = dom.getElementsByTagName('result')
+        if not result:
+            self.log('"result" tag not found (%s)' % char)
+            self.bot.msg(replyto,
+                'Couldn\'t fetch character sheet for %s' % char)
+            return
+
+        dob = result[0].getElementsByTagName('DoB')
+        dob = dob[0].childNodes[0].nodeValue
+
+        dob = time.mktime(time.strptime(dob, '%Y-%m-%d %H:%M:%S'))
+
+        currentTime = dom.getElementsByTagName('currentTime')
+        currentTime = currentTime[0].childNodes[0].nodeValue
+        currentTime = time.mktime(time.strptime(
+            currentTime, '%Y-%m-%d %H:%M:%S'))
+
+        age = currentTime - dob
+
+        self.bot.msg(replyto, 
+            '%s was born %s (age %s)' % \
+            (str(char),
+            time.strftime('%Y-%m-%d', time.localtime(dob)),
+            stdiff(age)))
+
     def cmd_sp(self, user, replyto, params):
         char = params.strip()
         nick = user.split('!', 1)[0]
