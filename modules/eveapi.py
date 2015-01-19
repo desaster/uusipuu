@@ -859,6 +859,63 @@ class Module(UusipuuModule):
             freesp,
             respecs))
 
+    def cmd_standings(self, user, replyto, params):
+        nick = user.split('!', 1)[0]
+
+        pieces = [x.strip() for x in params.strip().split(',')]
+        if len(pieces) < 1:
+            self.bot.msg(replyto, 'Usage: !standings <corp/faction>, <character>')
+            return
+        corpname = pieces[0]
+
+        char = nick
+        if len(pieces) > 1:
+            char = pieces[1]
+
+        chars = self.findchars(char)
+        if not len(chars):
+            self.bot.msg(replyto, 'No characters found matching "%s"' % char)
+            return
+
+        if len(chars) > 3:
+            self.bot.msg(replyto, ('Too many characters found (%d),' + \
+                ' please be more specific') % len(chars))
+            return
+
+        for char in chars:
+            d = self.query_standings(
+                self.config['characters'][char]['userid'],
+                self.config['characters'][char]['apikey'],
+                self.config['characters'][char]['charid'])
+            d.addCallback(self.parseXML)
+            d.addCallback(self.show_standings,
+                user, replyto, char, corpname)
+            d.addErrback(self.error, user)
+
+    def show_standings(self, data, user, replyto, char, corpname):
+        if not data[0]:
+            self.error(data[1], user)
+            return
+        dom = data[1]
+
+        standings = dom.getElementsByTagName('characterNPCStandings')
+        standings = standings[0]
+
+        amount = None
+        for standing in standings.getElementsByTagName('row'):
+            if standing.getAttribute('fromName').lower() != corpname.lower():
+                continue
+            amount = standing.getAttribute('standing')
+            corpname = standing.getAttribute('fromName')
+            break
+
+        if amount is None:
+            self.bot.msg(replyto, 'No such standings found :(')
+            return
+
+        msg = '%s %s (%s)' % (corpname, amount, char)
+        self.bot.msg(replyto, str(msg))
+
     def cmd_secstatus(self, user, replyto, params):
         char = params.strip()
         nick = user.split('!', 1)[0]
