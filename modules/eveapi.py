@@ -1204,4 +1204,46 @@ class Module(UusipuuModule):
             (skilltypename, level, char)
         self.bot.msg(replyto, str(msg))
 
+    def cmd_ship(self, user, replyto, params):
+        char = params.strip()
+        nick = user.split('!', 1)[0]
+
+        if not len(char):
+            char = nick
+
+        chars = self.findchars(char)
+        if not len(chars):
+            self.bot.msg(replyto, 'No characters found matching "%s"' % char)
+            return
+
+        if len(chars) > 3:
+            self.bot.msg(replyto, ('Too many characters found (%d),' + \
+                ' please be more specific') % len(chars))
+            return
+
+        for char in chars:
+            d = self.query_charinfo(
+                self.config['characters'][char]['userid'],
+                self.config['characters'][char]['apikey'],
+                self.config['characters'][char]['charid'])
+            d.addCallback(self.parseXML)
+            d.addCallback(self.show_ship,
+                user, replyto, char)
+            d.addErrback(self.error, user)
+
+    def show_ship(self, data, user, replyto, char):
+        if not data[0]:
+            self.error(data[1], user)
+            return
+        dom = data[1]
+
+        shipName = dom.getElementsByTagName('shipName')
+        shipName = shipName[0].childNodes[0].nodeValue
+
+        shipTypeName = dom.getElementsByTagName('shipTypeName')
+        shipTypeName = shipTypeName[0].childNodes[0].nodeValue
+
+        msg = '%s [%s] (%s)' % (shipName, shipTypeName, char)
+        self.bot.msg(replyto, str(msg))
+
 # vim: set et sw=4:
