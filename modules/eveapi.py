@@ -1243,7 +1243,10 @@ class Module(UusipuuModule):
         shipTypeName = dom.getElementsByTagName('shipTypeName')
         shipTypeName = shipTypeName[0].childNodes[0].nodeValue
 
-        msg = '%s [%s] (%s)' % (shipName, shipTypeName, char)
-        self.bot.msg(replyto, str(msg))
+        location = dom.getElementsByTagName('lastKnownLocation')
+        location = location[0].childNodes[0].nodeValue
+
+        msg = '%s [%s] {%s} (%s)' % (shipName, shipTypeName, location, char)
+        self.bot.msg(replyto, msg.encode('utf-8'))
 
 # vim: set et sw=4:
