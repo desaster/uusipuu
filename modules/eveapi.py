@@ -1249,4 +1249,56 @@ class Module(UusipuuModule):
         msg = '%s [%s] {%s} (%s)' % (shipName, shipTypeName, location, char)
         self.bot.msg(replyto, msg.encode('utf-8'))
 
+    def cmd_implants(self, user, replyto, params):
+        char = params.strip()
+        nick = user.split('!', 1)[0]
+
+        if not len(char):
+            char = nick
+
+        chars = self.findchars(char)
+        if not len(chars):
+            self.bot.msg(replyto, 'No characters found matching "%s"' % char)
+            return
+
+        if len(chars) > 3:
+            self.bot.msg(replyto, ('Too many characters found (%d),' + \
+                ' please be more specific') % len(chars))
+            return
+
+        for char in chars:
+            d = self.query_charsheet(
+                self.config['characters'][char]['userid'],
+                self.config['characters'][char]['apikey'],
+                self.config['characters'][char]['charid'])
+            d.addCallback(self.parseXML)
+            d.addCallback(self.show_implants,
+                user, replyto, char)
+            d.addErrback(self.error, user)
+
+    def show_implants(self, data, user, replyto, char):
+        if not data[0]:
+            self.error(data[1], user)
+            return
+        dom = data[1]
+
+        rowsets = dom.getElementsByTagName('rowset')
+        implants = None
+        for rowset in rowsets:
+            print rowset.getAttribute('name')
+            if rowset.getAttribute('name') == 'implants':
+                implants = rowset
+
+        if implants is None:
+            self.bot.msg(replyto, 'Couldn\'t parse implants data :(')
+            return
+
+        implantNames = []
+        for implant in implants.getElementsByTagName('row'):
+            implantName = implant.getAttribute('typeName')
+            implantNames.append(implantName)
+
+        msg = '%s: %s' % (char, ', '.join(implantNames))
+        self.bot.msg(replyto, msg.encode('utf-8'))
+
 # vim: set et sw=4:
