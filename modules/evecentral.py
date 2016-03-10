@@ -13,14 +13,14 @@ class Module(UusipuuModule):
     def shutdown(self):
         self.db_close('evedb')
 
-    def findtype(self, key):
-        if key.isdigit():
-            sql = 'SELECT typeName, typeID, groupID FROM invTypes' + \
-                ' WHERE typeID = ? COLLATE NOCASE'
-        else:
-            sql = 'SELECT typeName, typeID, groupID FROM invTypes' + \
-                ' WHERE typeName = ? COLLATE NOCASE'
-        return self.db.runQuery(sql, (key,))
+    def findtypebyname(self, key):
+        sql = 'SELECT typeName, typeID, groupID, ' + \
+            'CASE WHEN typeName = ? THEN 1 ELSE 0 END AS typeOrder ' + \
+            'FROM invTypes ' + \
+            'WHERE typeName LIKE ? ' + \
+            'ORDER BY typeOrder ASC LIMIT 1 ' + \
+            'COLLATE NOCASE';
+        return self.db.runQuery(sql, (key, '%' + key + '%'))
 
     def findregion(self, key):
         sql = 'SELECT regionID, regionName FROM mapRegions' + \
@@ -39,7 +39,7 @@ class Module(UusipuuModule):
         if len(pieces) > 1:
             region = pieces[1].strip()
 
-        result = yield self.findtype(item)
+        result = yield self.findtypebyname(item)
         if not len(result):
             self.bot.msg(replyto, 'Unknown item :(')
             self.log('Item not found [%s]' % (item,))
