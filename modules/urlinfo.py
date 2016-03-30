@@ -30,9 +30,9 @@ class Module(UusipuuModule):
             print('Received empty youtube data!')
             return
         data = self.parse_youtube(output)
-        print(data['title'])
 
-        self.chanmsg('%s' % (data['title'],))
+        print('Title: %s' % (repr(data['title'])))
+        self.chanmsg(data['title'].encode('ISO-8859-1'))
 
     def parse_youtube(self, output):
         foo = lxml.html.fromstring(output)
